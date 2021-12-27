@@ -1,7 +1,7 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/extensions/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 contract NFTMarket is ReentrancyGuard {
@@ -11,7 +11,7 @@ contract NFTMarket is ReentrancyGuard {
      Counters.Counter private _itemsSold;
 
      address payable owner;
-     uint256 listingProce = 0.025 ether;
+     uint256 listingPrice = 0.025 ether;
 
      constructor() {
          owner = payable(msg.sender);
@@ -29,13 +29,13 @@ contract NFTMarket is ReentrancyGuard {
 
      }
 
-     mapping(unit256 => MarketItem) private idToMarketItem;
+     mapping(uint256 => MarketItem) private idToMarketItem;
 
     event MarketItemCreated (
 
-         unit indexed itemId,
+         uint indexed itemId,
          address indexed nftContract,
-         unit256 indexed tokenId,
+         uint256 indexed tokenId,
          address  seller,
          address  owner,
          uint256 price,
@@ -51,8 +51,8 @@ contract NFTMarket is ReentrancyGuard {
         require(price > 0, "Price must be at least 1 wei");
         require(msg.value == listingPrice, "Price must be equal to listing price");
 
-        _itemIds.increment();
-        uint256 itemId = _itemIds.current();
+        _itemsIds.increment();
+        uint256 itemId = _itemsIds.current();
 
         idToMarketItem[itemId] = MarketItem(
              itemId, 
@@ -104,5 +104,74 @@ contract NFTMarket is ReentrancyGuard {
     }
 
     //3 views of NFTS returns unsold items, items that were purchased, items that have been created. 
+    function fetchMarketItems() public view returns (MarketItem[] memory) {
+        //return unsold items
+        uint itemCount = _itemsIds.current();
+        uint unsoldItemCount = _itemsIds.current() - _itemsSold.current();
+        uint currentIndex = 0;
+        MarketItem[] memory items = new MarketItem[](unsoldItemCount);
+        for (uint i = 0; i < itemCount; i++) {
+            if (idToMarketItem[i + 1].owner == address(0)) {
+                uint currentId = idToMarketItem[i + 1].itemId;
+                MarketItem storage currentItem = idToMarketItem[currentId];
+                items[currentIndex] = currentItem;
+                currentIndex +=1;                 
+            }
+        }
+        return items;
+    }
 
+    // function where user has purchased themselves 
+    function fetchMyNFTs() public view returns (MarketItem[] memory) {
+        uint totalItemCount = _itemsIds.current();
+        uint itemCount = 0;
+        uint currentIndex = 0;
+
+        for (uint i = 0; i < totalItemCount; i++) {
+            if (idToMarketItem[i + 1].owner == msg.sender) {
+                itemCount +=1; 
+            }
+        }
+
+        MarketItem[] memory items = new MarketItem[](itemCount);
+        for (uint i = 0; i < totalItemCount; i++) {
+            uint currentId = idToMarketItem[i + 1].itemId;
+            MarketItem storage currentItem =idToMarketItem[currentId]; 
+            items[currentIndex] = currentItem;
+            currentIndex +=1;   //can use the counters class here as well
+
+        } 
+        
+     return items;
+    }
+
+
+    function fetchItemsCreated() public view returns (MarketItem[] memory) {
+        uint totalItemCount = _itemsIds.current();
+        uint itemCount = 0;
+        uint currentIndex = 0;
+
+        for (uint i = 0; i < totalItemCount; i++) {
+            if (idToMarketItem[i + 1].seller == msg.sender) {
+                itemCount +=1;
+            }
+        }
+
+        MarketItem[] memory items = new MarketItem[](itemCount);
+        for (uint i = 0; i < totalItemCount; i++) {
+
+            if (idToMarketItem[i + 1].seller == msg.sender) {
+                uint currentId = idToMarketItem[i + 1].itemId;
+                MarketItem storage currentItem = idToMarketItem[currentId];
+                items[currentIndex] = currentItem;
+                currentIndex +=1; 
+            }
+        }
+        return items; 
+
+    }
+
+
+    
+      
 }
